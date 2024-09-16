@@ -52,6 +52,21 @@ void Task::SetFailPath(POBJECT_ATTRIBUTES poa)
 	}
 }
 
+NTSTATUS SetDelete(HANDLE hFile)
+{
+	static const FILE_DISPOSITION_INFO_EX fdi = {
+		FILE_DISPOSITION_FLAG_DELETE|FILE_DISPOSITION_FLAG_POSIX_SEMANTICS
+	};
+	IO_STATUS_BLOCK iosb;
+
+	switch (NTSTATUS status = NtSetInformationFile(hFile, &iosb, (void*)&fdi, sizeof(fdi), FileDispositionInformationEx))
+	{
+	case STATUS_INVALID_PARAMETER:
+		return NtSetInformationFile(hFile, &iosb, (void*)&fdi, sizeof(fdi), FileDispositionInformation);
+	default: return status;
+	}
+}
+
 class __declspec(align(__alignof(SLIST_ENTRY))) CFolder : public IO_OBJECT
 {
 	enum { er = 'LLLL' };
@@ -76,6 +91,10 @@ class __declspec(align(__alignof(SLIST_ENTRY))) CFolder : public IO_OBJECT
 		if (!InterlockedDecrement(&_M_Files))
 		{
 			InterlockedIncrementNoFence(&_M_pTask->_M_nDeletedFolders);
+			if (0 > _M_bDelete)
+			{
+				SetDelete(getHandle());
+			}
 			Close();
 			if (_M_parent)
 			{
@@ -166,10 +185,7 @@ class __declspec(align(__alignof(SLIST_ENTRY))) CFolder : public IO_OBJECT
 						if (0 <= (status = NtOpenFile(&hFile, DELETE, &oa, &iosb, FILE_SHARE_VALID_FLAGS, 
 							FILE_OPEN_FOR_BACKUP_INTENT|FILE_OPEN_REPARSE_POINT)))
 						{
-							static const FILE_DISPOSITION_INFO_EX fdi = {
-								FILE_DISPOSITION_FLAG_DELETE|FILE_DISPOSITION_FLAG_POSIX_SEMANTICS
-							};
-							status = NtSetInformationFile(hFile, &iosb, (void*)&fdi, sizeof(fdi), FileDispositionInformationEx);
+							status = SetDelete(hFile);
 							NtClose(hFile);
 						}
 					}

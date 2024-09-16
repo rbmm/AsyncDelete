@@ -64,7 +64,7 @@ static NTSTATUS OnKdOk(HWND hwnd)
 						status = HRESULT_FROM_WIN32(ERROR_CANCELLED);
 						goto __0;
 					}
-					bDelete = TRUE;
+					bDelete = (BST_CHECKED == SendDlgItemMessageW(hwnd, IDC_CHECK2, BM_GETCHECK, 0, 0)) ? -1 : +1;
 				}
 				status = RtlDosPathNameToNtPathName_U_WithStatus(psz, &ObjectName, 0, 0);
 			}
@@ -214,6 +214,10 @@ static INT_PTR CALLBACK KdDlgProc(HWND hwnd, UINT umsg, WPARAM wParam, LPARAM lP
 
 		case IDC_BUTTON1:
 			SelectFolder(hwnd);
+			break;
+
+		case IDC_CHECK1:
+			EnableWindow(GetDlgItem(hwnd, IDC_CHECK2), BST_CHECKED == SendMessageW((HWND)lParam, BM_GETCHECK, 0, 0));
 			break;
 		}
 		break;
